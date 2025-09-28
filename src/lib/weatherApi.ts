@@ -113,7 +113,6 @@ function getWeatherIcon(code: number): string {
     1198: '🌨️', // Light freezing rain
     1201: '🌨️', // Moderate or heavy freezing rain
     1204: '🌨️', // Light sleet
- oderate or heavy sleet
     1210: '🌨️', // Patchy light snow
     1213: '❄️', // Light snow
     1216: '🌨️', // Patchy moderate snow
@@ -180,3 +179,4 @@ export function getCurrentLocation(): Promise<{ lat: number; lon: number }> {
     );
   });
 }
+
