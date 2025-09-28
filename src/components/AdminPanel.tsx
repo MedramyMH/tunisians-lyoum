@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Plus, Download, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
-import { rssSources, categories, fetchRSSArticles, NewsArticle } from '@/lib/newsData';
+import { Settings, Plus, Download, ToggleLeft, ToggleRight, Loader2, Check, X } from 'lucide-react';
+import { rssSources, categories, NewsArticle } from '@/lib/newsData';
+import { fetchRSSArticles } from '@/lib/rssParser';
 import { toast } from 'sonner';
 
 interface AdminPanelProps {
@@ -21,6 +22,7 @@ interface AdminPanelProps {
 export default function AdminPanel({ language, onArticleAdd }: AdminPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingArticles, setPendingArticles] = useState<NewsArticle[]>([]);
   const [newArticle, setNewArticle] = useState({
     title: { ar: '', fr: '' },
     summary: { ar: '', fr: '' },
@@ -65,16 +67,33 @@ export default function AdminPanel({ language, onArticleAdd }: AdminPanelProps) 
   };
 
   const handleFetchRSS = async (sourceId: string) => {
+    const source = rssSourcesState.find(s => s.id === sourceId);
+    if (!source) return;
+
     setIsLoading(true);
     try {
-      const articles = await fetchRSSArticles(sourceId);
-      articles.forEach(article => onArticleAdd(article));
-      toast.success(language === 'ar' ? `تم استخراج ${articles.length} مقال` : `${articles.length} articles extraits`);
+      const articles = await fetchRSSArticles(sourceId, source.url, source.name[language]);
+      setPendingArticles(prev => [...prev, ...articles]);
+      toast.success(language === 'ar' ? `تم استخراج ${articles.length} مقال للمراجعة` : `${articles.length} articles extraits pour révision`);
     } catch (error) {
       toast.error(language === 'ar' ? 'خطأ في استخراج المقالات' : 'Erreur lors de l\'extraction des articles');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleApproveArticle = (articleId: string) => {
+    const article = pendingArticles.find(a => a.id === articleId);
+    if (article) {
+      onArticleAdd(article);
+      setPendingArticles(prev => prev.filter(a => a.id !== articleId));
+      toast.success(language === 'ar' ? 'تم نشر المقال' : 'Article publié');
+    }
+  };
+
+  const handleRejectArticle = (articleId: string) => {
+    setPendingArticles(prev => prev.filter(a => a.id !== articleId));
+    toast.success(language === 'ar' ? 'تم رفض المقال' : 'Article rejeté');
   };
 
   const toggleRSSSource = (sourceId: string) => {
@@ -93,7 +112,7 @@ export default function AdminPanel({ language, onArticleAdd }: AdminPanelProps) 
           {language === 'ar' ? 'الإدارة' : 'Admin'}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {language === 'ar' ? 'لوحة الإدارة' : 'Panneau d\'Administration'}
@@ -101,12 +120,18 @@ export default function AdminPanel({ language, onArticleAdd }: AdminPanelProps) 
         </DialogHeader>
 
         <Tabs defaultValue="write" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="write">
-              {language === 'ar' ? 'كتابة مقال' : 'Écrire un article'}
+              {language === 'ar' ? 'كتابة مقال' : 'Écrire'}
             </TabsTrigger>
             <TabsTrigger value="rss">
               {language === 'ar' ? 'مصادر RSS' : 'Sources RSS'}
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              {language === 'ar' ? 'مراجعة المقالات' : 'Révision'}
+              {pendingArticles.length > 0 && (
+                <Badge variant="destructive" className="ml-2">{pendingArticles.length}</Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="settings">
               {language === 'ar' ? 'الإعدادات' : 'Paramètres'}
@@ -324,6 +349,64 @@ export default function AdminPanel({ language, onArticleAdd }: AdminPanelProps) 
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pending" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  {language === 'ar' ? 'مراجعة المقالات المستخرجة' : 'Révision des articles extraits'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingArticles.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    {language === 'ar' ? 'لا توجد مقالات للمراجعة' : 'Aucun article en attente de révision'}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingArticles.map((article) => (
+                      <div key={article.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm">{article.title[language]}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">{article.source}</p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApproveArticle(article.id)}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRejectArticle(article.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {article.summary[language]}
+                        </p>
+                        {article.imageUrl && (
+                          <img 
+                            src={article.imageUrl} 
+                            alt={article.title[language]}
+                            className="w-full h-32 object-cover rounded mt-2"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
