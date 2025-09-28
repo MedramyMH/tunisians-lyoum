@@ -26,49 +26,64 @@ export default function RadioPlayer({ language }: RadioPlayerProps) {
 
   const handleStationChange = (stationId: string) => {
     const station = tunisianRadioStations.find(s => s.id === stationId);
-    if (station && audioRef.current) {
+    if (station) {
       setSelectedStation(station);
       setIsPlaying(false);
       setError(null);
-      audioRef.current.pause();
-      audioRef.current.src = station.streamUrl;
-      // Important: reload before trying to play
-      audioRef.current.load();
-    }
-  };
-
-
-  const togglePlayPause = async () => {
-    if (!selectedStation || !audioRef.current) return;
-  
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      try {
-        setIsLoading(true);
-        setError(null);
-        audioRef.current.load(); // ensure stream is loaded
-        await audioRef.current.play();
-        setIsPlaying(true);
-      } catch (err) {
-        console.error('Error playing audio:', err);
-        setError(language === 'ar' ? 'خطأ في تشغيل المحطة' : 'Erreur de lecture de la station');
-        setIsPlaying(false);
-      } finally {
-        setIsLoading(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = station.streamUrl;
+        audioRef.current.load(); // Force reload of the audio element
       }
     }
   };
 
+  const togglePlayPause = async () => {
+    if (!selectedStation || !audioRef.current) return;
 
-  const handleAudioError = () => {
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      setIsLoading(false);
+    } else {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Set audio properties for better streaming
+        audioRef.current.preload = 'none';
+        audioRef.current.crossOrigin = 'anonymous';
+        
+        // Try to play with autoplay
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+          await playPromise;
+          setIsPlaying(true);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error playing audio:', error);
+        setError(language === 'ar' ? 'خطأ في تشغيل المحطة - تأكد من الاتصال بالإنترنت' : 'Erreur de lecture - vérifiez votre connexion');
+        setIsLoading(false);
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const handleAudioError = (e: any) => {
+    console.error('Audio error:', e);
     setError(language === 'ar' ? 'المحطة غير متاحة حالياً' : 'Station non disponible actuellement');
     setIsLoading(false);
     setIsPlaying(false);
   };
 
   const handleAudioLoad = () => {
+    setIsLoading(false);
+    setError(null);
+  };
+
+  const handleCanPlay = () => {
     setIsLoading(false);
     setError(null);
   };
@@ -158,44 +173,22 @@ export default function RadioPlayer({ language }: RadioPlayerProps) {
 
               <audio
                 ref={audioRef}
-                onPlay={() => setIsPlaying(true)}
+                onPlay={() => {
+                  setIsPlaying(true);
+                  setIsLoading(false);
+                }}
                 onPause={() => setIsPlaying(false)}
                 onError={handleAudioError}
                 onLoadStart={() => setIsLoading(true)}
-                onCanPlay={handleAudioLoad}
+                onCanPlay={handleCanPlay}
+                onLoadedData={handleAudioLoad}
                 preload="none"
+                crossOrigin="anonymous"
               />
             </div>
           )}
-
-          {/* Test Stream Button */}
-          <div className="pt-2 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => {
-                // Set a test stream that definitely works
-                const testStation: RadioStation = {
-                  id: 'test',
-                  name: 'Test Stream',
-                  frequency: 'Test',
-                  country: 'Test',
-                  streamUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
-                };
-                setSelectedStation(testStation);
-                setError(null);
-                if (audioRef.current) {
-                  audioRef.current.src = testStation.streamUrl;
-                }
-              }}
-            >
-              {language === 'ar' ? 'تجربة التشغيل' : 'Test de lecture'}
-            </Button>
-          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
-
