@@ -26,39 +26,41 @@ export default function RadioPlayer({ language }: RadioPlayerProps) {
 
   const handleStationChange = (stationId: string) => {
     const station = tunisianRadioStations.find(s => s.id === stationId);
-    if (station) {
+    if (station && audioRef.current) {
       setSelectedStation(station);
       setIsPlaying(false);
       setError(null);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = station.streamUrl;
-      }
+      audioRef.current.pause();
+      audioRef.current.src = station.streamUrl;
+      // Important: reload before trying to play
+      audioRef.current.load();
     }
   };
 
+
   const togglePlayPause = async () => {
     if (!selectedStation || !audioRef.current) return;
-
+  
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
-      setIsLoading(false);
     } else {
       try {
         setIsLoading(true);
         setError(null);
+        audioRef.current.load(); // ensure stream is loaded
         await audioRef.current.play();
         setIsPlaying(true);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error playing audio:', error);
+      } catch (err) {
+        console.error('Error playing audio:', err);
         setError(language === 'ar' ? 'خطأ في تشغيل المحطة' : 'Erreur de lecture de la station');
-        setIsLoading(false);
         setIsPlaying(false);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
+
 
   const handleAudioError = () => {
     setError(language === 'ar' ? 'المحطة غير متاحة حالياً' : 'Station non disponible actuellement');
@@ -196,3 +198,4 @@ export default function RadioPlayer({ language }: RadioPlayerProps) {
     </Card>
   );
 }
+
