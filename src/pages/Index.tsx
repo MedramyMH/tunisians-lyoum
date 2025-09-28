@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import NewsCard from '@/components/NewsCard';
@@ -10,11 +10,21 @@ import AdminPanel from '@/components/AdminPanel';
 import LiveNewsTicker from '@/components/LiveNewsTicker';
 import { mockNewsArticles, NewsArticle } from '@/lib/newsData';
 import { Newspaper, Star } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 export default function Index() {
   const [language, setLanguage] = useState<'ar' | 'fr'>('ar');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [articles, setArticles] = useState<NewsArticle[]>(mockNewsArticles);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const location = useLocation();
+
+  // Check if admin route is accessed
+  useEffect(() => {
+    if (location.pathname === '/admin') {
+      setShowAdmin(true);
+    }
+  }, [location]);
 
   const handleAddArticle = (newArticle: NewsArticle) => {
     setArticles(prev => [newArticle, ...prev]);
@@ -57,7 +67,10 @@ export default function Index() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <AdminPanel language={language} onArticleAdd={handleAddArticle} />
+              {/* Only show admin panel if accessed via /admin route */}
+              {showAdmin && (
+                <AdminPanel language={language} onArticleAdd={handleAddArticle} />
+              )}
               <LanguageToggle currentLanguage={language} onLanguageChange={setLanguage} />
             </div>
           </div>
