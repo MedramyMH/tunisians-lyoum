@@ -69,8 +69,9 @@ export default function Index() {
             <div className="flex items-center space-x-3">
               {/* Only show admin panel if accessed via /admin route */}
               {showAdmin && (
-                <AdminPanel language={language} onArticleAdd={handleAddArticle} />
+                <AdminPanelWrapper language={language} onArticleAdd={handleAddArticle} />
               )}
+
               <LanguageToggle currentLanguage={language} onLanguageChange={setLanguage} />
             </div>
           </div>
@@ -210,3 +211,4 @@ export default function Index() {
     </div>
   );
 }
+
