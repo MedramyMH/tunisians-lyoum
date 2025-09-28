@@ -20,7 +20,7 @@ export default function WeatherWidget({ language }: WeatherWidgetProps) {
         setWeather(weatherData);
       } catch (error) {
         console.error('Error fetching weather:', error);
-        // Fallback to mock data
+        // Fallback to default location
         const weatherData = await getWeatherData();
         setWeather(weatherData);
       } finally {
@@ -29,7 +29,30 @@ export default function WeatherWidget({ language }: WeatherWidgetProps) {
     };
 
     fetchWeather();
+    
+    // Update weather every 30 minutes
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  const getDayName = (day: string) => {
+    if (language === 'fr') {
+      const dayTranslations: { [key: string]: string } = {
+        'اليوم': 'Aujourd\'hui',
+        'غداً': 'Demain',
+        'الأحد': 'Dimanche',
+        'الإثنين': 'Lundi',
+        'الثلاثاء': 'Mardi',
+        'الأربعاء': 'Mercredi',
+        'الخميس': 'Jeudi',
+        'الجمعة': 'Vendredi',
+        'السبت': 'Samedi'
+      };
+      return dayTranslations[day] || day;
+    }
+    return day;
+  };
 
   if (loading) {
     return (
@@ -85,7 +108,7 @@ export default function WeatherWidget({ language }: WeatherWidgetProps) {
             <div className="grid grid-cols-3 gap-2 text-xs">
               {weather.forecast.slice(0, 6).map((day, index) => (
                 <div key={index} className="text-center">
-                  <p className="font-medium">{day.day}</p>
+                  <p className="font-medium">{getDayName(day.day)}</p>
                   <p className="text-lg">{day.icon}</p>
                   <p>{day.high}°/{day.low}°</p>
                 </div>
